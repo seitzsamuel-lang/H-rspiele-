@@ -1,7 +1,7 @@
 {
   "name": "HörSpiel Box",
   "short_name": "HörSpiel",
-  "description": "Hörspiele für Kinder",
+  "description": "Hörspiele und Musik für Kinder",
   "start_url": "https://seitzsamuel-lang.github.io/H-rspiele-/",
   "scope": "https://seitzsamuel-lang.github.io/H-rspiele-/",
   "display": "standalone",
