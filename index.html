@@ -292,11 +292,15 @@ function makeStar(i){const d=document.createElement("div");d.className="star";d.
 function starsDiv(){const d=document.createElement("div");d.className="stars";for(let i=0;i<35;i++)d.appendChild(makeStar(i));return d;}
 
 // ============================================================
-// NEXT TRACK (auto-advance)
+// NEXT TRACK (auto-advance) — global flat list across all series
 // ============================================================
-function getNextEp(series,currentEpId){
-  const idx=series.episodes.findIndex(e=>e.id===currentEpId);
-  if(idx>=0&&idx<series.episodes.length-1)return series.episodes[idx+1];
+function getNextEp(currentSeriesId, currentEpId){
+  const lib = currentLib();
+  // Build flat list: [{series, ep}]
+  const flat = [];
+  lib.forEach(s => s.episodes.forEach(ep => flat.push({series:s, ep})));
+  const idx = flat.findIndex(x => x.series.id===currentSeriesId && x.ep.id===currentEpId);
+  if(idx>=0 && idx<flat.length-1) return flat[idx+1];
   return null;
 }
 
@@ -633,16 +637,17 @@ function screenPlayer(){
 
   const playBtn=el("button","play-btn","▶");playBtn.style.cssText=`background:${s.color};box-shadow:0 8px 28px ${s.color}88`;
 
-  // Right button: next track (Musik) or +30s (Hörspiele)
+  // Right button: next track for Musik (global flat list), +30s for Hörspiele
   const skipF=el("button","skip-btn");
   if(isM){
-    const nextEp=getNextEp(s,ep.id);
+    const nextItem=getNextEp(s.id,ep.id);
     skipF.innerHTML=`<span style="font-size:24px">⏭</span><span style="font-size:11px;opacity:0.7">Nächster</span>`;
-    skipF.style.opacity=nextEp?"1":"0.35";
+    skipF.style.opacity=nextItem?"1":"0.35";
     skipF.onclick=()=>{
-      if(!nextEp)return;
+      if(!nextItem)return;
       saveProgress(ep.id,curPos);
-      selectedEp=nextEp;nowPlayingEp=nextEp;
+      selectedSeries=nextItem.series;selectedEp=nextItem.ep;
+      nowPlayingSeries=nextItem.series;nowPlayingEp=nextItem.ep;
       playerStartPos=0;screenPlayer();
     };
   } else {
@@ -653,9 +658,16 @@ function screenPlayer(){
 
   let ticker=null;
   function advanceToNext(){
-    const next=getNextEp(s,ep.id);
-    if(next){saveProgress(ep.id,ep.duration);selectedEp=next;nowPlayingEp=next;playerStartPos=0;screenPlayer();}
-    else{stopPb();saveProgress(ep.id,ep.duration);}
+    // Uses global flat list — works across series AND Einzeldateien
+    const nextItem=getNextEp(s.id,ep.id);
+    if(nextItem){
+      saveProgress(ep.id,ep.duration);
+      selectedSeries=nextItem.series;selectedEp=nextItem.ep;
+      nowPlayingSeries=nextItem.series;nowPlayingEp=nextItem.ep;
+      playerStartPos=0;screenPlayer();
+    } else {
+      stopPb();saveProgress(ep.id,ep.duration);
+    }
   }
   function startPb(){isPlaying=true;playBtn.textContent="⏸";waveRow.style.display="flex";if(ep.file)audioEl.play();else ticker=setInterval(()=>{curPos=Math.min(ep.duration,curPos+playSpeed);playerCurPos=curPos;updateUI();if(curPos>=ep.duration)advanceToNext();if(Math.round(curPos)%10===0)saveProgress(ep.id,curPos);},1000);updateMiniPlayer();}
   function stopPb(){isPlaying=false;playBtn.textContent="▶";waveRow.style.display="none";if(ep.file)audioEl.pause();else{clearInterval(ticker);ticker=null;}saveProgress(ep.id,curPos);updateMiniPlayer();}
